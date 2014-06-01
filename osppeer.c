@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <netinet/in.h>
@@ -757,7 +758,7 @@ int main(int argc, char *argv[])
 	tracker_task = start_tracker(tracker_addr, tracker_port);
 	listen_task = start_listen();
 	register_files(tracker_task, myalias);
-
+	/**sequential version
 	// First, download files named on command line.
 	for (; argc > 1; argc--, argv++)
 		if ((t = start_download(tracker_task, argv[1])))
@@ -766,6 +767,54 @@ int main(int argc, char *argv[])
 	// Then accept connections from other peers and upload files to them!
 	while ((t = task_listen(listen_task)))
 		task_upload(t);
+	**/
 
+	//parallel version
+	int childcount = 0;
+	for (; argc > 1; argc--, argv++)
+	{
+		if ((t = start_download(tracker_task,argv[1])))
+		{
+			pid_t pid;
+			if ((pid = fork()) < 0)
+			{
+				error("Error Forking.\n");
+				continue;
+			}
+			if (pid == 0) //child process
+			{
+				task_download(t,tracker_task);
+				_exit(0);
+			}
+			else  //parent process
+			{
+				childcount++;
+				task_free(t);
+			}
+		}
+	}
+	while (childcount > 0)
+	{
+		waitpid(-1,NULL,0);
+		childcount--;
+	}
+	while ((t = task_listen(listen_task)))
+	{
+		pid_t pid;
+		waitpid(-1,NULL,WNOHANG);
+	}
 	return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
