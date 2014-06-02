@@ -40,7 +40,11 @@ buffer size and also adding a null byte at the end.
 - Increased task buffer size
 We increased the value of TASKBUFSIZE from 4096 to 65536 (64 KB). This
 improves the robustness by allowing a greater number of peers to connect.
-- Prevent download from other directories 
+- Restricted maximum file size
+We set a limit to the size of the downloaded file to 10 MB (This can be
+changed). This improves robustness by prevent peers from transferring large
+amounts of data and taking up disk space.
+- Prevent download from other directories
 
 
 # EXERCISE 3: Describe the attacks you implemented for "evil mode".  Why

@@ -43,8 +43,8 @@ static int listen_port;
 // Size of task_t::filename
 #define FILENAMESIZ	256
 
-//maximum file size for u/d l
-#define MAXFILESIZ 512*1024
+//maximum file size for upload/download
+#define MAXFILESIZ 1024*1024
 
 typedef enum tasktype {		// Which type of connection is this?
 	TASK_TRACKER,		// => Tracker connection
@@ -567,7 +567,16 @@ static void task_download(task_t *t, task_t *tracker_task)
 
 	// Read the file into the task buffer from the peer,
 	// and write it from the task buffer onto disk.
-	while (1) {
+	while (1)
+	{
+		if (t->total_written > MAXFILESIZ)
+		{
+			error("Error: File too big\n");
+			task_free(t);
+			unlink(t->disk_filename);
+			return;
+		}
+
 		int ret = read_to_taskbuf(t->peer_fd, t);
 		if (ret == TBUF_ERROR) {
 			error("* Peer read error");
@@ -769,7 +778,9 @@ int main(int argc, char *argv[])
 	tracker_task = start_tracker(tracker_addr, tracker_port);
 	listen_task = start_listen();
 	register_files(tracker_task, myalias);
-	/**sequential version
+
+	//sequential version
+	/**
 	// First, download files named on command line.
 	for (; argc > 1; argc--, argv++)
 		if ((t = start_download(tracker_task, argv[1])))
@@ -777,7 +788,8 @@ int main(int argc, char *argv[])
 
 	// Then accept connections from other peers and upload files to them!
 	while ((t = task_listen(listen_task)))
-		task_upload(t);**/
+		task_upload(t);
+	**/
 	
 
 	//parallel version
