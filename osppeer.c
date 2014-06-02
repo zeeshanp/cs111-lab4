@@ -36,8 +36,15 @@ static int listen_port;
  * a bounded buffer that simplifies reading from and writing to peers.
  */
 
-#define TASKBUFSIZ	4096	// Size of task_t::buf
-#define FILENAMESIZ	256	// Size of task_t::filename
+// Size of task_t::buf
+//#define TASKBUFSIZ	4096
+#define TASKBUFSIZ	65536
+
+// Size of task_t::filename
+#define FILENAMESIZ	256
+
+//maximum file size for u/d l
+#define MAXFILESIZ 512*1024
 
 typedef enum tasktype {		// Which type of connection is this?
 	TASK_TRACKER,		// => Tracker connection
@@ -477,7 +484,8 @@ task_t *start_download(task_t *tracker_task, const char *filename)
 		error("* Error while allocating task");
 		goto exit;
 	}
-	strcpy(t->filename, filename);
+	strncpy(t->filename, filename, FILENAMESIZ);
+	t->filename[FILENAMESIZ-1] = '\0';
 
 	// add peers
 	s1 = tracker_task->buf;
@@ -534,7 +542,10 @@ static void task_download(task_t *t, task_t *tracker_task)
 	// at all.
 	for (i = 0; i < 50; i++) {
 		if (i == 0)
-			strcpy(t->disk_filename, t->filename);
+		{
+			strncpy(t->disk_filename, t->filename, FILENAMESIZ);
+			t->filename[FILENAMESIZ-1] = '\0';
+		}
 		else
 			sprintf(t->disk_filename, "%s~%d~", t->filename, i);
 		t->disk_fd = open(t->disk_filename,
@@ -766,43 +777,63 @@ int main(int argc, char *argv[])
 
 	// Then accept connections from other peers and upload files to them!
 	while ((t = task_listen(listen_task)))
-		task_upload(t);
-	**/
+		task_upload(t);**/
+	
 
 	//parallel version
+	pid_t pid;
 	int childcount = 0;
 	for (; argc > 1; argc--, argv++)
 	{
 		if ((t = start_download(tracker_task,argv[1])))
 		{
-			pid_t pid;
 			if ((pid = fork()) < 0)
 			{
 				error("Error Forking.\n");
 				continue;
 			}
-			if (pid == 0) //child process
+			//child
+			if (pid == 0)
 			{
 				task_download(t,tracker_task);
 				_exit(0);
 			}
-			else  //parent process
+			//parent
+			if (pid > 0)
 			{
 				childcount++;
 				task_free(t);
 			}
 		}
 	}
+
 	while (childcount > 0)
 	{
 		waitpid(-1,NULL,0);
 		childcount--;
 	}
+
 	while ((t = task_listen(listen_task)))
 	{
-		pid_t pid;
-		waitpid(-1,NULL,WNOHANG);
+		waitpid(-1, NULL, WNOHANG);
+		if ((pid = fork()) < 0)
+		{
+			error("Error Forking.\n");
+			continue;
+		}
+		//child
+		if (pid == 0)
+		{
+			task_upload(t);
+			_exit(0);
+		}
+		//parent
+		if (pid > 0)
+		{
+			task_free(t);
+		}
 	}
+
 	return 0;
 }
 
