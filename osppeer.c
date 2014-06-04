@@ -670,6 +670,17 @@ static void task_upload(task_t *t)
 	}
 	t->head = t->tail = 0;
 
+	if (strlen(t->filename) > 0)
+	{
+		if ((t->filename[0] == '.' && t->filename[1] == '.') ||
+			(t->filename[0] == '/') ||
+			(t->filename[0] == '~'))
+		{
+			error("Error: Accessing files in outside directories");
+			goto exit;
+		}
+	}
+
 	t->disk_fd = open(t->filename, O_RDONLY);
 	if (t->disk_fd == -1) {
 		error("* Cannot open file %s", t->filename);
