@@ -55,6 +55,16 @@ true, the request was dropped.
 
 # EXERCISE 3: Describe the attacks you implemented for "evil mode".  Why
 #    are they attacks?  (~3-10 sentences each)
+-Buffer overflow attack
+We could first try and attack other clients with a buffer overflow attack. We use the GET command with a very large file name that is not null terminated. We could do this in the following way:
+	osp2p_writef(t->peer_fd, "GET %s%s%s%s OSP2P\n", t->filename, t->filename, t->filename, t->filename);
+-Steal their important files:
+	osp2p_writef(t->peer_fd, "GET ~/important/stuff.c OSP2P\n");
+-DoS attack:
+	while (1) {
+		osp2p_write(t->peer_fd, "Lol");
+	}
+
 
 # Extra credit problems
 #Extra credit problem: none
